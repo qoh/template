@@ -2,10 +2,14 @@ import { CompiledTemplate } from "./types";
 
 // TODO: Parse the code result so we can replace `foo` with `data.foo`.
 
+const GeneratorFunction =
+	Object.getPrototypeOf(function* () { }).constructor;
+
 const AsyncGeneratorFunction =
 	Object.getPrototypeOf(async function* () { }).constructor;
 
 export interface Options {
+	async?: boolean;
 	dataVariable?: string;
 	escapeInput?(input: string): string;
 }
@@ -68,10 +72,14 @@ export function compile(
 
 	const code = codeParts.join("\n");
 
+	const constructor = options.async !== false
+		? AsyncGeneratorFunction
+		: GeneratorFunction;
+
 	let f;
 
 	try {
-		f = AsyncGeneratorFunction(escapeInputVar, dataVar, code);
+		f = constructor(escapeInputVar, dataVar, code);
 	} catch (error) {
 		console.error("Failed to compile template. Generated code:");
 		console.error(code);
@@ -89,7 +97,13 @@ const htmlReplacements = {
 	">": "&gt;",
 };
 
-function escapeInputHTML(input: string): string {
+function escapeInputHTML(input: any): string {
+	if (typeof input !== "object" && typeof input !== "function" && typeof input !== "symbol") {
+		input = String(input);
+	} else if (typeof input !== "string") {
+		throw new Error("Interpolated values may not be objects, functions, or symbols");
+	}
+
 	return input.replace(/["'&<>]/g, s => htmlReplacements[s]);
 }
 
