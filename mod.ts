@@ -1,4 +1,4 @@
-import { CompiledTemplate } from "./types";
+export type CompiledTemplate<TData = any> = (data: TData) => AsyncIterableIterator<string>;
 
 // TODO: Parse the code result so we can replace `foo` with `data.foo`.
 
@@ -14,10 +14,10 @@ export interface Options {
 	escapeInput?(input: string): string;
 }
 
-export function compile(
+export function compile<TData = any>(
 	template: string,
 	options: Options = {},
-): CompiledTemplate {
+): CompiledTemplate<TData> {
 	const dataVar = options.dataVariable === undefined
 		? "d"
 		: options.dataVariable;
@@ -25,7 +25,7 @@ export function compile(
 		? escapeInputHTML
 		: options.escapeInput;
 
-	const escapeInputVar = "__escapeInput";
+	const escapeInputVar = "$__escapeInput";
 	const codeParts = ["\"use strict\";"];
 
 	let position = 0;
@@ -76,7 +76,7 @@ export function compile(
 		? AsyncGeneratorFunction
 		: GeneratorFunction;
 
-	let f;
+	let f: typeof constructor;
 
 	try {
 		f = constructor(escapeInputVar, dataVar, code);
@@ -97,14 +97,25 @@ const htmlReplacements = {
 	">": "&gt;",
 };
 
+type HtmlReplacee = keyof (typeof htmlReplacements);
+
 function escapeInputHTML(input: any): string {
-	if (typeof input !== "object" && typeof input !== "function" && typeof input !== "symbol") {
-		input = String(input);
+	let str: string;
+
+	if (
+		typeof input !== "object" &&
+		typeof input !== "function" &&
+		typeof input !== "symbol"
+	) {
+		str = String(input);
 	} else if (typeof input !== "string") {
 		throw new Error("Interpolated values may not be objects, functions, or symbols");
+	} else {
+		str = input;
 	}
 
-	return input.replace(/["'&<>]/g, s => htmlReplacements[s]);
+	return str.replace(/["'&<>]/g, s =>
+		htmlReplacements[<HtmlReplacee>s]);
 }
 
 function stringToJS(input: string): string {

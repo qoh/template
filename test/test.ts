@@ -1,6 +1,6 @@
 import { assertEquals } from "https://cdn.rawgit.com/qoh/assert/v0.0.1/src/index.ts";
 import { collectAsync } from "https://cdn.rawgit.com/qoh/utility/v0.0.1/src/iterable.ts";
-import { compile } from "../src/compile";
+import { compile, CompiledTemplate } from "../mod.ts";
 
 export async function basic() {
 	const f = compile(`
@@ -12,6 +12,8 @@ export async function basic() {
 `);
 
 	const data = { names: ["foo & co", "bar"], transform };
+
+	f(true);
 
 	assertEquals(await call(f, data), `
 <ul>
@@ -62,9 +64,9 @@ export async function blocks() {
 `);
 }
 
-async function transform(s) { return s.toUpperCase(); }
+async function transform(s: string) { return s.toUpperCase(); }
 
-async function call(template, data) {
+async function call<TData>(template: CompiledTemplate<TData>, data: TData) {
 	return (await collectAsync(template(data))).join("");
 }
 
